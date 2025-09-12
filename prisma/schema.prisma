@@ -9,166 +9,85 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id          String           @id @default(uuid())
-  email       String           @unique
-  name        String
-  password    String
-  role        Role
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+model WorkPermit {
+  id         Int      @id @default(autoincrement())
+  company    String
+  branch     String
+  pic        String
+  location   String
+  department String
+  owner      String
+  startDate  DateTime
+  endDate    DateTime
+  status     Status   @default(PENDING)
 
-  submissions FormSubmission[] @relation("UserSubmissions")
+  equipments  Equipment[]
+  machines    Machine[]
+  materials   Material[]
+  ppes        WorkPermitPPE[]
+  emergencies WorkPermitEmergency[]
+  checklists  ChecklistAnswer[]
 
-  @@map("tb_m_users")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model Form {
-  id        BigInt     @id @default(autoincrement())
-  name      String     @unique @db.VarChar(100)
-  slug      String     @unique @db.VarChar(100)
-  sections  Section[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  submissions FormSubmission[]
-
-  @@map("tb_m_forms")
+model Equipment {
+  id           Int        @id @default(autoincrement())
+  name         String
+  qty          Int
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
-model Section {
-  id           BigInt     @id @default(autoincrement())
-  name         String     @db.VarChar(100)
-  index_number Int
-  formId       BigInt
-  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
-  questions    Question[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  @@map("tb_m_sections")
+model Machine {
+  id           Int        @id @default(autoincrement())
+  name         String
+  qty          Int
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
-model Question {
-  id           BigInt        @id @default(autoincrement())
-  index_number Int
-  value        String        @db.VarChar(255)
-  type         QuestionType
-  sectionId    BigInt
-  section      Section       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  options      Option[]
-  answers      FormSubmissionAnswer[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  @@map("tb_m_questions")
+model Material {
+  id           Int        @id @default(autoincrement())
+  name         String
+  qty          Int
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
-model Option {
-  id         BigInt     @id @default(autoincrement())
-  value      String     @db.VarChar(100)
-  questionId BigInt
-  question   Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-
-  @@map("tb_m_options")
+model WorkPermitPPE {
+  id           Int        @id @default(autoincrement())
+  name         String
+  selected     Boolean    @default(false)
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
-model SafetyEquipment {
-  id        BigInt          @id @default(autoincrement())
-  name      String          @unique @db.VarChar(100)
-  category  SafetyCategory
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-
-  @@map("tb_m_safety_equipments")
+model WorkPermitEmergency {
+  id           Int        @id @default(autoincrement())
+  name         String
+  selected     Boolean    @default(false)
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
-model FormSubmission {
-  id             BigInt                 @id @default(autoincrement())
-  formId         BigInt
-  form           Form                   @relation(fields: [formId], references: [id])
-  submittedById  String?
-  submittedBy    User?                  @relation("UserSubmissions", fields: [submittedById], references: [id])
-  submittedAt    DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  status         SubmissionStatus       @default(Pending)
-  priority       Priority               @default(Normal)
-  workDate       DateTime
-  answers        FormSubmissionAnswer[]
-  approvedByAdmin String?
-  approvedAtAdmin DateTime?
-  approvedByJRO   String?
-  approvedAtJRO   DateTime?
-  rejectedBy      String?
-  rejectedAt      DateTime?
-
-  logs           FormSubmissionLog[]
-
-  @@map("tb_tr_form_submissions")
+model ChecklistAnswer {
+  id           Int        @id @default(autoincrement())
+  question     String
+  answer       String
+  additional   String?
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
-model FormSubmissionAnswer {
-  id             BigInt               @id @default(autoincrement())
-  submissionId   BigInt
-  submission     FormSubmission       @relation(fields: [submissionId], references: [id])
-  questionId     BigInt
-  question       Question             @relation(fields: [questionId], references: [id])
-  value          String               @db.Text
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-
-  @@map("tb_tr_form_submission_answers")
-}
-
-model FormSubmissionLog {
-  id            BigInt         @id @default(autoincrement())
-  submissionId  BigInt
-  submission    FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  action        String         @db.VarChar(100)
-  actor         String         @db.VarChar(100)
-  createdAt     DateTime       @default(now())
-
-  @@map("tb_tr_submission_logs")
-}
-
-enum Role {
-  ADMIN
-  JRO
-  EMPLOYEE
-  VENDOR
-}
-
-enum QuestionType {
-  Option
-  Number
-  Paragraph
-  Text
-  Date
-  Signature
-  YesNoNA
-  Checkbox
-  CheckboxFromMaster
-}
-
-enum SafetyCategory {
-  APD
-  Emergency
-}
-
-enum SubmissionStatus {
-  Pending
-  InReview
-  Approved
-  Rejected
-}
-
-enum Priority {
-  Normal
-  High
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
 }
