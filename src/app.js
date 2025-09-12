@@ -24,7 +24,6 @@ app.use(cookieParser());
 app.use(express.json());
 
 // Routes
-app.use();
 app.use(routes);
 
 export default app;
