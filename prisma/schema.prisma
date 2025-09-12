@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,81 +7,197 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model WorkPermit {
-  id         Int      @id @default(autoincrement())
-  company    String
-  branch     String
-  pic        String
-  location   String
-  department String
-  owner      String
-  startDate  DateTime
-  endDate    DateTime
-  status     Status   @default(PENDING)
-
-  equipments  Equipment[]
-  machines    Machine[]
-  materials   Material[]
-  ppes        WorkPermitPPE[]
-  emergencies WorkPermitEmergency[]
-  checklists  ChecklistAnswer[]
-
+model User {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  email     String   @unique @db.VarChar(100)
+  password  String   @db.VarChar(150)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  Role        Role[]
+  submissions FormSubmission[] @relation("UserSubmissions")
+
+  @@map("users")
 }
 
-model Equipment {
-  id           Int        @id @default(autoincrement())
+model Role {
+  id   BigInt @id @default(autoincrement())
+  name String @db.VarChar(50)
+  User User[]
+
+  @@map("roles")
+}
+
+model SafetyEquipment {
+  id        BigInt         @id @default(autoincrement())
+  name      String         @unique @db.VarChar(100)
+  category  SafetyCategory
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  FormSubmissionSafetyEquipment FormSubmissionSafetyEquipment[]
+
+  @@map("safety_equipments")
+}
+
+model Form {
+  id        BigInt    @id @default(autoincrement())
+  name      String    @unique @db.VarChar(100)
+  slug      String    @unique @db.VarChar(100)
+  sections  Section[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  submissions FormSubmission[]
+
+  @@map("forms")
+}
+
+model Section {
+  id           BigInt     @id @default(autoincrement())
+  name         String     @db.VarChar(100)
+  index_number Int
+  formId       BigInt
+  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  questions    Question[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("sections")
+}
+
+model Question {
+  id           BigInt                 @id @default(autoincrement())
+  index_number Int
+  value        String                 @db.VarChar(255)
+  type         QuestionType
+  required     Boolean                @default(false) // <--- NEW
+  sectionId    BigInt
+  section      Section                @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  options      Option[]
+  answers      FormSubmissionAnswer[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@map("questions")
+}
+
+model Option {
+  id         BigInt   @id @default(autoincrement())
+  value      String   @db.VarChar(100)
+  questionId BigInt
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("options")
+}
+
+model FormSubmission {
+  id              BigInt                 @id @default(autoincrement())
+  formId          BigInt
+  form            Form                   @relation(fields: [formId], references: [id])
+  submittedById   BigInt
+  submittedBy     User?                  @relation("UserSubmissions", fields: [submittedById], references: [id])
+  submittedAt     DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  status          SubmissionStatus       @default(PENDING)
+  priority        Priority               @default(NORMAL)
+  workDate        DateTime
+  answers         FormSubmissionAnswer[]
+  approvedByAdmin String?
+  approvedAtAdmin DateTime?
+  approvedByJRO   String?
+  approvedAtJRO   DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+
+  logs             FormSubmissionLog[]
+  safetyEquipments FormSubmissionSafetyEquipment[]
+  items            FormSubmissionItem[]
+
+  @@map("form_submissions")
+}
+
+model FormSubmissionAnswer {
+  id           BigInt         @id @default(autoincrement())
+  submissionId BigInt
+  submission   FormSubmission @relation(fields: [submissionId], references: [id])
+  questionId   BigInt
+  question     Question       @relation(fields: [questionId], references: [id])
+  value        String         @db.Text
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("form_submission_answers")
+}
+
+model FormSubmissionLog {
+  id           BigInt         @id @default(autoincrement())
+  submissionId BigInt
+  submission   FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  action       String         @db.VarChar(100)
+  actor        String         @db.VarChar(100)
+  createdAt    DateTime       @default(now())
+
+  @@map("submission_logs")
+}
+
+model FormSubmissionSafetyEquipment {
+  id                BigInt          @id @default(autoincrement())
+  submissionId      BigInt
+  submission        FormSubmission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  safetyEquipmentId BigInt
+  safetyEquipment   SafetyEquipment @relation(fields: [safetyEquipmentId], references: [id], onDelete: Cascade)
+  quantity          Int?
+
+  @@map("form_submission_safety_equipments")
+}
+
+model FormSubmissionItem {
+  id           BigInt         @id @default(autoincrement())
+  submissionId BigInt
+  submission   FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   name         String
-  qty          Int
-  workPermitId Int
-  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
+  quantity     Int
+  type         ItemType
+  createdAt    DateTime       @default(now())
+
+  @@map("form_submission_items")
 }
 
-model Machine {
-  id           Int        @id @default(autoincrement())
-  name         String
-  qty          Int
-  workPermitId Int
-  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
+enum QuestionType {
+  OPTION
+  NUMBER
+  PARAGRAPH
+  TEXT
+  DATE
+  SIGNATURE
+  YESNONA
+  CHECKBOX
+  CHECKBOXFROMMASTER
 }
 
-model Material {
-  id           Int        @id @default(autoincrement())
-  name         String
-  qty          Int
-  workPermitId Int
-  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
-}
-
-model WorkPermitPPE {
-  id           Int        @id @default(autoincrement())
-  name         String
-  selected     Boolean    @default(false)
-  workPermitId Int
-  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
-}
-
-model WorkPermitEmergency {
-  id           Int        @id @default(autoincrement())
-  name         String
-  selected     Boolean    @default(false)
-  workPermitId Int
-  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
-}
-
-model ChecklistAnswer {
-  id           Int        @id @default(autoincrement())
-  question     String
-  answer       String
-  additional   String?
-  workPermitId Int
-  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
-}
-
-enum Status {
+enum SubmissionStatus {
   PENDING
+  REVIEW
   APPROVED
   REJECTED
-  COMPLETED
+}
+
+enum SafetyCategory {
+  APD
+  EMERGENCY
+}
+
+enum Priority {
+  HIGH
+  NORMAL
+  LOW
+}
+
+enum ItemType {
+  EQUIPMENT
+  MACHINE
+  MATERIAL
 }
