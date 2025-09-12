@@ -1,4 +1,4 @@
-import { prisma } from '../configurations/database.js';
+import prisma from "../configurations/database.js";
 
 export const getFormBySlug = async (req, res) => {
   try {
