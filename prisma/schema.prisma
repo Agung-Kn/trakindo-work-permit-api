@@ -8,99 +8,123 @@ datasource db {
 }
 
 model User {
-  id           BigInt            @id @default(autoincrement())
-  name         String             @db.VarChar(100)
-  email        String             @unique @db.VarChar(100)
-  password     String             @db.VarChar(150)
-  createdAt    DateTime            @default(now())
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  email     String   @unique @db.VarChar(100)
+  password  String   @db.VarChar(150)
+  createdAt DateTime @default(now())
 
-  Role          Role[]
-  submissions   WorkPermit[]       @relation("UserSubmissions")
+  Role        Role[]
+  approvals   WorkPermitApproval[]
+  submissions WorkPermit[]         @relation("UserSubmissions")
 
   @@map("users")
 }
 
 model Role {
-  id    BigInt @id @default(autoincrement())
-  name  String @db.VarChar(50)
-  User  User[]
+  id   BigInt @id @default(autoincrement())
+  name String @db.VarChar(50)
+  User User[]
 
   @@map("roles")
 }
 
 model WorkPermit {
-  id           Int       @id @default(autoincrement())
-  company      String
-  branch       String
-  pic          String
-  location     String
-  department   String
-  owner        String
-  startDate    DateTime
-  endDate      DateTime
-  status       Status    @default(PENDING)
+  id         Int      @id @default(autoincrement())
+  no         String   @unique
+  company    String
+  branch     String
+  pic        String
+  location   String
+  department String
+  owner      String
+  startDate  DateTime
+  endDate    DateTime
 
-  equipments   Equipment[]
-  machines     Machine[]
-  materials    Material[]
-  ppes          WorkPermitPPE[]
-  emergencies   WorkPermitEmergency[]
-  checklists    ChecklistAnswer[]
+  equipments  Equipment[]
+  machines    Machine[]
+  materials   Material[]
+  ppes        WorkPermitPPE[]
+  emergencies WorkPermitEmergency[]
+  checklists  ChecklistAnswer[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  approvals WorkPermitApproval[]
 
-  createdById  BigInt?
-  createdBy    User?     @relation("UserSubmissions", fields: [createdById], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById BigInt?
+  createdBy   User?   @relation("UserSubmissions", fields: [createdById], references: [id])
+}
+
+model WorkPermitApproval {
+  id           Int            @id @default(autoincrement())
+  workPermitId Int
+  approverId   BigInt
+  role         String
+  status       ApprovalStatus @default(PENDING)
+  reason       String?
+  approvedAt   DateTime?
+
+  workPermit WorkPermit @relation(fields: [workPermitId], references: [id])
+  approver   User       @relation(fields: [approverId], references: [id])
+
+  @@unique([workPermitId, role]) // 1 role hanya 1 approval per WorkPermit
 }
 
 model Equipment {
-  id            Int        @id @default(autoincrement())
-  name          String
-  qty           Int
-  workPermitId  Int
-  workPermit    WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
+  id           Int        @id @default(autoincrement())
+  name         String
+  qty          Int
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
 model Machine {
-  id            Int        @id @default(autoincrement())
-  name          String
-  qty           Int
-  workPermitId  Int
-  workPermit    WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
+  id           Int        @id @default(autoincrement())
+  name         String
+  qty          Int
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
 model Material {
-  id            Int        @id @default(autoincrement())
-  name          String
-  qty           Int
-  workPermitId  Int
-  workPermit    WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
+  id           Int        @id @default(autoincrement())
+  name         String
+  qty          Int
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
 model WorkPermitPPE {
-  id            Int        @id @default(autoincrement())
-  name           String
-  selected       Boolean     @default(false)
-  workPermitId   Int
-  workPermit     WorkPermit  @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
+  id           Int        @id @default(autoincrement())
+  name         String
+  selected     Boolean    @default(false)
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
 model WorkPermitEmergency {
-  id            Int        @id @default(autoincrement())
-  name           String
-  selected       Boolean     @default(false)
-  workPermitId   Int
-  workPermit     WorkPermit  @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
+  id           Int        @id @default(autoincrement())
+  name         String
+  selected     Boolean    @default(false)
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
 }
 
 model ChecklistAnswer {
-  id            Int        @id @default(autoincrement())
-  question       String
-  answer         String
-  additional     String?
-  workPermitId   Int
-  workPermit     WorkPermit   @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
+  id           Int        @id @default(autoincrement())
+  question     String
+  answer       String
+  additional   String?
+  workPermitId Int
+  workPermit   WorkPermit @relation(fields: [workPermitId], references: [id], onDelete: Cascade)
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum Status {
