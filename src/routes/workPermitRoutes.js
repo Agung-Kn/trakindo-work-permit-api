@@ -1,16 +1,11 @@
 import { Router } from 'express';
 import {
-  getWorkPermits,
   createWorkPermit,
-  getWorkPermitById,
-  deleteWorkPermit,
 } from '../controllers/workPermitController.js';
+import { authenticate } from '../middlewares/middleware.js';
 
 const router = Router();
 
-router.get('/work-permits/', getWorkPermits);
-router.get('/work-permits/:id', getWorkPermitById);
-router.post('/work-permits/', createWorkPermit);
-router.delete('/work-permits/:id', deleteWorkPermit);
+router.post('/public/work-permits/create', authenticate, createWorkPermit);
 
 export default router;

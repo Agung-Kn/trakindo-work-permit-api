@@ -1,10 +1,8 @@
-// controllers/workPermitController.js
-import { PrismaClient } from '@prisma/client';
+import prisma from '../configurations/database.js'
+import serializeBigInt from "../helpers/serializeBigInt.js"
+import response from '../response.js';
 
-const prisma = new PrismaClient();
-
-// Create new Work Permit
-export const createWorkPermit = async (req, res, next) => {
+export const createWorkPermit = async (req, res) => {
   try {
     const {
       company,
@@ -15,11 +13,12 @@ export const createWorkPermit = async (req, res, next) => {
       owner,
       startDate,
       endDate,
-      equipments,
-      machines,
-      materials,
-      ppes,
-      safetyEquipments,
+      equipments = [],
+      machines = [],
+      materials = [],
+      ppes = [],
+      emergencies = [],
+      checklists = []
     } = req.body;
 
     const workPermit = await prisma.workPermit.create({
@@ -32,84 +31,64 @@ export const createWorkPermit = async (req, res, next) => {
         owner,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
+        createdById: req.user.id,
+
         equipments: {
-          create: equipments || [],
+          create: equipments.map((item) => ({
+            name: item.name,
+            qty: parseInt(item.qty)
+          }))
         },
+
         machines: {
-          create: machines || [],
+          create: machines.map((item) => ({
+            name: item.name,
+            qty: parseInt(item.qty)
+          }))
         },
+
         materials: {
-          create: materials || [],
+          create: materials.map((item) => ({
+            name: item.name,
+            qty: parseInt(item.qty)
+          }))
         },
+
         ppes: {
-          create: (ppes || []).map((item) => ({ name: item })),
+          create: ppes.map((item) => ({
+            name: item.name,
+            selected: item.selected
+          }))
         },
-        safetyEquipments: {
-          create: (safetyEquipments || []).map((item) => ({ name: item })),
+
+        emergencies: {
+          create: emergencies.map((item) => ({
+            name: item.name,
+            selected: item.selected
+          }))
         },
+
+        checklists: {
+          create: checklists.map((item) => ({
+            question: item.question,
+            answer: item.answer,
+            additional: item.additional || null
+          }))
+        }
       },
       include: {
         equipments: true,
         machines: true,
         materials: true,
         ppes: true,
-        safetyEquipments: true,
-      },
+        emergencies: true,
+        checklists: true
+      }
     });
 
-    res.status(201).json(workPermit);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Get all Work Permits
-export const getWorkPermits = async (req, res, next) => {
-  try {
-    const permits = await prisma.workPermit.findMany({
-      include: {
-        equipments: true,
-        machines: true,
-        materials: true,
-        ppes: true,
-        safetyEquipments: true,
-      },
-    });
-    res.json(permits);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Get Work Permit by ID
-export const getWorkPermitById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const permit = await prisma.workPermit.findUnique({
-      where: { id: Number(id) },
-      include: {
-        equipments: true,
-        machines: true,
-        materials: true,
-        ppes: true,
-        safetyEquipments: true,
-      },
-    });
-
-    if (!permit) return res.status(404).json({ message: 'Permit not found' });
-    res.json(permit);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Delete Work Permit
-export const deleteWorkPermit = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    await prisma.workPermit.delete({ where: { id: Number(id) } });
-    res.json({ message: 'Permit deleted successfully' });
-  } catch (err) {
-    next(err);
+    return res.json(response(res, 200, serializeBigInt(workPermit), "Work Permit berhasil dibuat"));
+  } catch (error) {
+    console.error(error);
+    return res.json(response(res, 500, null, "Terjadi kesalahan saat membuat Work Permit"));
   }
 };

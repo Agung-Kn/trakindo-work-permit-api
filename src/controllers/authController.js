@@ -52,7 +52,8 @@ export const login = async (req, res) => {
       roles: safeUser.Role.map((r) => r.name),
     };
 
-    const accessExpiresIn = 15 * 60; // 15 minute
+    // const accessExpiresIn = 15 * 60; // 15 minute
+    const accessExpiresIn = 7 * 24 * 60 * 60; // 15 minute
     const accessToken = jwt.sign(
       { id: safeUser.id, email: safeUser.email, roles: profile.roles },
       process.env.ACCESS_TOKEN_SECRET,
@@ -69,10 +70,9 @@ export const login = async (req, res) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      // domain: "api.agung-kn.my.id",
-      path: "/",
+      secure: false,         // harus false saat localhost (HTTP)
+      sameSite: "lax",        // default yang aman saat dev
+      path: "/",              // masih boleh
       maxAge: refreshExpiresIn * 1000,
     });
 
