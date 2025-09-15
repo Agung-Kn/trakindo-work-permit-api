@@ -1,22 +1,69 @@
 import prisma from '../configurations/database.js'
 import serializeBigInt from "../helpers/serializeBigInt.js"
 import response from '../response.js';
+import { paginate } from '../utilities/paginate.js';
 
 export const getPermits = async (req, res) => {
   try {
-    const permits = await prisma.permit.findMany();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
 
-    return res.json(response(res, 200, serializeBigInt(permits), "Permits retrieved successfully"));
+    const result = await paginate(prisma.workPermit, {
+        page,
+        limit,
+        where: {
+          approvals: {
+            some: {
+              approverId: req.user.id
+            }
+          }
+        },
+        include: {
+          approvals: { select: { id: true, approverId: true, role: true, status: true } }
+        },
+        orderBy: { createdAt: "desc" },
+    });
+
+    const formattedData = result.data.map((item) => {
+      let overallStatus = "PENDING";
+      if (item.approvals.some((a) => a.status === "REJECTED")) {
+        overallStatus = "REJECTED";
+      } else if (item.approvals.every((a) => a.status === "APPROVED")) {
+        overallStatus = "APPROVED";
+      }
+
+      const userApproval = item.approvals.find((a) => Number(a.approverId) === Number(req.user.id));
+      const userStatus = userApproval ? userApproval.status : "PENDING";
+
+      return {
+        id: item.id,
+        no: item.no,
+        pic: item.pic,
+        company: item.company,
+        branch: item.branch,
+        startDate: item.startDate,
+        endDate: item.endDate,
+        createdAt: item.createdAt,
+        overallStatus,
+        userStatus,
+      };
+    });
+
+    res.json({
+        data: formattedData,
+        pagination: result.pagination,
+    });
   } catch (error) {
     console.error(error);
-    return res.json(response(res, 500, null, "An error occurred while retrieving Permits"));
+    return res.json(response(res, 500, null, "An error occurred while retrieving Work Permits"));
   }
 };
 
 export const getPermitById = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const permit = await prisma.permit.findUnique({
+		const permit = await prisma.workPermit.findUnique({
 			where: {
 				id: parseInt(id)
 			}
@@ -58,8 +105,8 @@ export const approvePermit = async (req, res) => {
       data: {
         status,
         reason: status === "REJECTED" ? reason : null,
-        approverId: BigInt(req.user.id),
-        updatedAt: new Date()
+        approverId: req.user.id,
+        approvedAt: new Date()
       }
     });
 

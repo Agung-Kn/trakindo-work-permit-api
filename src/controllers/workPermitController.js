@@ -21,7 +21,15 @@ export const getWorkPermits = async (req, res) => {
         orderBy: { createdAt: "desc" },
     });
 
-    const formattedData = result.data.map((item) => ({
+    const formattedData = result.data.map((item) => {
+      let status = "PENDING";
+      if (item.approvals.some((a) => a.status === "REJECTED")) {
+        status = "REJECTED";
+      } else if (item.approvals.every((a) => a.status === "APPROVED")) {
+        status = "APPROVED";
+      }
+
+      return {
         id: item.id,
         no: item.no,
         company: item.company,
@@ -29,10 +37,9 @@ export const getWorkPermits = async (req, res) => {
         startDate: item.startDate,
         endDate: item.endDate,
         createdAt: item.createdAt,
-        status: item.approvals.every((a) => a.status === "PENDING")
-            ? "PENDING"
-            : item.approvals.some((a) => a.status === "REJECTED"),
-    }));
+        status,
+      };
+    });
 
     res.json({
         data: formattedData,

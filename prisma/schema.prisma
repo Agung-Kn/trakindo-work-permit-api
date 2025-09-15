@@ -69,7 +69,7 @@ model WorkPermitApproval {
   workPermit WorkPermit @relation(fields: [workPermitId], references: [id])
   approver   User       @relation(fields: [approverId], references: [id])
 
-  @@unique([workPermitId, role]) // 1 role hanya 1 approval per WorkPermit
+  @@unique([workPermitId, role])
 }
 
 model Equipment {
