@@ -52,8 +52,8 @@ export const login = async (req, res) => {
       roles: safeUser.Role.map((r) => r.name),
     };
 
-    // const accessExpiresIn = 15 * 60; // 15 minute
-    const accessExpiresIn = 7 * 24 * 60 * 60; // 15 minute
+    const accessExpiresIn = 15 * 60; // 15 minute
+    // const accessExpiresIn = 7 * 24 * 60 * 60; // 15 minute
     const accessToken = jwt.sign(
       { id: safeUser.id, email: safeUser.email, roles: profile.roles },
       process.env.ACCESS_TOKEN_SECRET,
@@ -70,9 +70,9 @@ export const login = async (req, res) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false,         // harus false saat localhost (HTTP)
-      sameSite: "lax",        // default yang aman saat dev
-      path: "/",              // masih boleh
+      secure: false,
+      sameSite: "lax",
+      path: "/",
       maxAge: refreshExpiresIn * 1000,
     });
 
@@ -115,5 +115,24 @@ export const refreshToken = async (req, res) => {
     res.json({ accessToken: newAccessToken, expiredAt, profile });
   } catch (err) {
     res.status(403).json({ message: "Forbidden" });
+  }
+};
+
+export const profile = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { Role: true },
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const safeUser = serializeBigInt(user);
+    const profile = {
+      name: safeUser.name,
+      email: safeUser.email,
+      roles: safeUser.Role.map((r) => r.name),
+    };
+    res.json(response(res, 200, profile, "Profile retrieved successfully"));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
